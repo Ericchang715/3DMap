@@ -1,0 +1,111 @@
+<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>大專院校｜擬真 3D 飛越</title><style>
+:root{font-family:system-ui,'Noto Sans TC',sans-serif;color:#edf3ff;background:#080e1b}*{box-sizing:border-box}body{margin:0}.app{display:grid;grid-template-columns:360px 1fr;height:100dvh}.panel{background:#121c30;overflow:auto;padding:22px;z-index:2}h1{font-size:21px;margin:0 0 8px}.hint{color:#a8bbd5;font-size:13px;line-height:1.6}label{display:block;font-size:13px;margin:14px 0 6px}input,select,button{width:100%;border-radius:9px;padding:11px;background:#1c2a43;color:white;border:1px solid #415475;font:inherit}button{cursor:pointer;background:#1769ac;border:0;margin-top:10px;font-weight:650}button.secondary{background:#30435f}button:disabled{opacity:.45;cursor:not-allowed}.details{background:#1b2940;padding:15px;border-radius:12px;margin-top:18px}.details h2{font-size:18px;margin:0 0 8px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.tag{font-size:11px;border-radius:30px;background:#304967;padding:5px 9px}.status{font-size:13px;color:#b6d4ed;line-height:1.5;margin-top:12px;white-space:pre-wrap}.mapbox{position:relative;min-height:300px;background:#03060c}#map{height:100%;width:100%}gmp-map-3d{display:block;width:100%;height:100%}.hud{position:absolute;top:15px;right:15px;background:#0d1729dc;padding:12px;border-radius:12px;font-size:12px;pointer-events:none}.hud b{color:#7dd3fc}.overlay{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px;color:#b6cce8;pointer-events:none}.overlay.hidden{display:none}@media(max-width:800px){.app{grid-template-columns:1fr;grid-template-rows:52dvh 48dvh}.mapbox{grid-row:1}.panel{grid-row:2;padding:15px}.hud{top:8px;right:8px}}
+</style></head><body><div class="app"><section class="panel"><h1>大專院校擬真 3D 導覽</h1><p class="hint">使用 Google Maps 擬真 3D 地圖與原生飛行鏡頭。請透過 HTTPS 網站開啟，並使用已啟用 Maps JavaScript API 的金鑰。</p><label for="key">Google Maps API Key</label><input id="key" type="password" autocomplete="off" placeholder="輸入你的 API Key"><button id="load">載入擬真 3D 地圖</button><label for="school">快速定位校園</label><select id="school"></select><div class="details"><h2 id="name"></h2><div id="landmark" class="hint"></div><p id="desc" class="hint"></p><div class="tags" id="tags"></div></div><button id="fly" disabled>飛越至選定校園</button><button id="orbit" disabled>啟動 360° 立體環繞</button><button id="tour" class="secondary" disabled>巡迴全部 7 所校園</button><button id="stop" class="secondary" disabled>停止飛行</button><div id="status" class="status" role="status">等待輸入 API Key。</div><p class="hint">注意：擬真 3D 建物與地形取決於 Google 當地影像覆蓋範圍。API Key 請設定網站來源限制，勿將私人金鑰直接寫入公開程式碼。</p></section><main class="mapbox"><div id="map"></div><div id="placeholder" class="overlay">請先輸入 API Key 載入地圖</div><div class="hud">TILT <b id="tilt">--</b>　HEADING <b id="heading">--</b><br>RANGE <b id="range">--</b></div></main></div><script>
+    const UNIVERSITIES = [
+      {
+        id: 'nchu',
+        name: '國立中興大學',
+        landmark: '中興湖',
+        lat: 24.1213,
+        lng: 120.6754,
+        zoom: 17.6,
+        tilt: 58,
+        heading: 40,
+        tags: ['生農生物科技', '獸醫學群', '工程電資', '管理企管', '永續發展'],
+        desc: '中部唯一的頂尖研究型國立大學，校園內著名的「中興湖」形制仿造中國大陸形狀，依水而築，生態豐富，周邊林蔭環繞具備優美的立體地景。'
+      },
+      {
+        id: 'thu',
+        name: '東海大學',
+        landmark: '路思義教堂',
+        lat: 24.1789,
+        lng: 120.6006,
+        zoom: 18.2,
+        tilt: 60,
+        heading: 215,
+        tags: ['路思義教堂', '建築設計', '文學院', '管理金融', '永續生態'],
+        desc: '擁有大肚山廣袤的森林學府景致，世界知名建築大師貝聿銘與陳其寬操刀的「路思義教堂」以雙曲面薄殼屋頂屹立於大草坪，是 3D 視角最具張力的代表地標。'
+      },
+      {
+        id: 'fcu',
+        name: '逢甲大學',
+        landmark: '主校區 / 忠勤樓',
+        lat: 24.1798,
+        lng: 120.6486,
+        zoom: 17.5,
+        tilt: 52,
+        heading: 130,
+        tags: ['資訊電機', '商學管理', '智慧製造', '航太工程', '逢甲商圈'],
+        desc: '緊鄰全台著名的逢甲商圈，校園空間緊湊精緻且極富都市科技感。工學院、商學院底蘊深厚，近年共善樓與智慧科技大樓更展現前瞻的校園風貌。'
+      },
+      {
+        id: 'nycu-guangfu',
+        name: '國立陽明交通大學',
+        landmark: '新竹光復校區 / 浩然圖書資訊中心',
+        lat: 24.7867056,
+        lng: 120.9982944,
+        zoom: 18.0,
+        tilt: 50,
+        heading: 75,
+        tags: ['資訊工程', '電機工程', '半導體研究', '管理學院', '竹湖'],
+        desc: '新竹光復校區位於新竹市東區大學路1001號，鄰近新竹科學園區。校內有浩然圖書資訊中心、工程館舍及竹湖，適合從空中觀察校園建築與周邊地形。'
+      },
+      {
+        id: 'nutc',
+        name: '國立臺中科技大學',
+        landmark: '三民校區 / 中商大樓',
+        lat: 24.1512,
+        lng: 120.6852,
+        zoom: 17.8,
+        tilt: 55,
+        heading: 280,
+        tags: ['商管財金', '設計學群', '資訊流通', '護理健康', '一中商圈'],
+        desc: '座落於一中商圈精華核心，歷史悠久的中商大樓與現代建築交織。以商管、財金、多媒體設計和醫療照護著稱，生活機能與實務能量極度豐沛。'
+      },
+      {
+        id: 'ncue',
+        name: '國立彰化師範大學',
+        landmark: '師大校區（原寶山校區） / 工學院大樓',
+        lat: 24.06519275,
+        lng: 120.55956085,
+        zoom: 17.5,
+        tilt: 56,
+        heading: 105,
+        tags: ['工學院', '管理學院', '科技學院', '八卦山', '創新育成'],
+        desc: '師大校區（原寶山校區）位於彰化市師大路2號，坐落於八卦山北部山頂，設有工學院大樓、經世館、力行館與創新育成中心，可從空中欣賞校園與彰化市區景觀。'
+      },
+      {
+        id: 'ncnu',
+        name: '國立暨南國際大學',
+        landmark: '埔里校區 / 暨大圖書館',
+        lat: 23.9515,
+        lng: 120.9298,
+        zoom: 16.5,
+        tilt: 58,
+        heading: 160,
+        tags: ['國際東南亞', '觀光餐旅', '綠色大學', '環山草皮', '櫻花林'],
+        desc: '全台灣視野最為開闊的綠色大學之一，佔地 150 公頃，坐落於埔里盆地邊緣高原。相機視角可飽覽群山環抱的遼闊大草原、特色圖書館與櫻花林美景。'
+      }
+    ];
+const $=id=>document.getElementById(id);
+let map=null, selected=0, runId=0, touring=false, orbiting=false, loading=false;
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const status=msg=>{$('status').textContent=msg};
+function camera(s){return {center:{lat:s.lat,lng:s.lng,altitude:0},range:Math.max(550,Math.min(1800,Math.pow(2,19-s.zoom)*650)),tilt:Math.max(50,Math.min(80,s.tilt+16)),heading:s.heading};}
+function display(i){selected=i;const s=UNIVERSITIES[i];$('school').value=String(i);$('name').textContent=s.name;$('landmark').textContent='地標：'+s.landmark;$('desc').textContent=s.desc;$('tags').replaceChildren(...s.tags.map(t=>{const el=document.createElement('span');el.className='tag';el.textContent=t;return el}));}
+UNIVERSITIES.forEach((s,i)=>{const opt=document.createElement('option');opt.value=i;opt.textContent=s.name+'｜'+s.landmark;$('school').append(opt)});display(0);
+function refreshHud(){if(!map)return;$('tilt').textContent=Math.round(map.tilt||0)+'°';$('heading').textContent=Math.round(map.heading||0)+'°';$('range').textContent=Math.round(map.range||0)+' m';}
+function setReady(ready){for(const id of ['fly','orbit','tour','stop'])$(id).disabled=!ready;}
+function cancel(){runId++;touring=false;orbiting=false;if(map)map.stopCameraAnimation();$('orbit').textContent='啟動 360° 立體環繞';$('tour').textContent='巡迴全部 7 所校園';}
+function awaitAnimation(token,ms){return new Promise(resolve=>{if(!map||token!==runId)return resolve(false);let done=false;const finish=()=>{if(done)return;done=true;map.removeEventListener('gmp-animationend',finish);clearTimeout(timer);resolve(token===runId)};map.addEventListener('gmp-animationend',finish,{once:true});const timer=setTimeout(finish,ms+7000);});}
+async function flyTo(i,token){if(!map||token!==runId)return false;display(i);const target=camera(UNIVERSITIES[i]);const wait=awaitAnimation(token,4200);map.flyCameraTo({endCamera:target,durationMillis:4200});status('飛越至：'+UNIVERSITIES[i].name);return await wait;}
+async function orbitOnce(token){if(!map||token!==runId)return false;const target=camera(UNIVERSITIES[selected]);const wait=awaitAnimation(token,30000);map.flyCameraAround({camera:target,durationMillis:30000,repeatCount:1});status('正在環繞：'+UNIVERSITIES[selected].name);return await wait;}
+$('school').addEventListener('change',()=>{const i=Number($('school').value);cancel();display(i);if(map){map.flyCameraTo({endCamera:camera(UNIVERSITIES[i]),durationMillis:3600});status('定位：'+UNIVERSITIES[i].name)}});
+$('fly').addEventListener('click',async()=>{cancel();const token=runId;await flyTo(selected,token)});
+$('orbit').addEventListener('click',async()=>{if(orbiting){cancel();status('已停止環繞');return}cancel();orbiting=true;$('orbit').textContent='停止 360° 環繞';const token=runId;while(orbiting&&token===runId){if(!await orbitOnce(token))break}if(token===runId){orbiting=false;$('orbit').textContent='啟動 360° 立體環繞'}});
+$('tour').addEventListener('click',async()=>{if(touring){cancel();status('已停止巡迴');return}cancel();touring=true;$('tour').textContent='停止校園巡迴';const token=runId;while(touring&&token===runId){for(let n=0;n<UNIVERSITIES.length&&touring&&token===runId;n++){if(!await flyTo(n,token))break;if(!await orbitOnce(token))break}}if(token===runId){touring=false;$('tour').textContent='巡迴全部 7 所校園'}});
+$('stop').addEventListener('click',()=>{cancel();status('已停止飛行')});
+window.gm_authFailure=()=>{status('Google Maps API 授權失敗。請檢查金鑰、網站來源限制、API 啟用狀態及帳單設定。');setReady(false)};
+function loadApi(key){return new Promise((resolve,reject)=>{const cb='__campus3DLoaded';const script=document.createElement('script');let finished=false;const finish=(error)=>{if(finished)return;finished=true;clearTimeout(timer);delete window[cb];error?reject(error):resolve()};window[cb]=()=>finish();script.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&v=weekly&loading=async&callback='+cb;script.async=true;script.onerror=()=>finish(new Error('無法下載 Google Maps JavaScript API，請檢查網路或瀏覽器設定。'));const timer=setTimeout(()=>finish(new Error('API 載入逾時（30 秒）。請檢查連線及 API Key 設定。')),30000);document.head.append(script)});}
+$('load').addEventListener('click',async()=>{if(loading||map)return;const key=$('key').value.trim();if(!key){status('請先輸入 API Key。');return}if(location.protocol!=='https:'&&location.hostname!=='localhost'){status('目前透過 '+location.protocol+' 開啟。請將 HTML 部署到 GitHub Pages 的 HTTPS 網址，再載入 3D 地圖。');return}loading=true;$('load').disabled=true;status('正在載入 Google Maps 3D API…');try{await loadApi(key);const {Map3DElement}=await google.maps.importLibrary('maps3d');map=new Map3DElement({...camera(UNIVERSITIES[selected]),mode:'SATELLITE'});$('map').replaceChildren(map);$('placeholder').classList.add('hidden');for(const event of ['gmp-headingchange','gmp-tiltchange','gmp-rangechange'])map.addEventListener(event,refreshHud);refreshHud();setReady(true);status('擬真 3D 地圖已初始化。請等待場景載入後，按下環繞或巡迴。');$('key').value='';$('load').textContent='地圖已載入';}catch(e){status('載入失敗：'+(e?.message||String(e)));$('load').disabled=false}finally{loading=false}});
+</script></body></html>
